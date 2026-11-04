@@ -1,5 +1,5 @@
 // يخزّن ملفات التطبيق ليعمل بدون إنترنت
-const CACHE = 'sanjil-school-v1';
+const CACHE = 'sanjil-school-v2';
 const FILES = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-maskable-512.png', './apple-touch-icon.png'];
 
 self.addEventListener('install', e => {
@@ -22,7 +22,8 @@ self.addEventListener('fetch', e => {
   e.respondWith(
     caches.match(req).then(hit => {
       const net = fetch(req).then(res => {
-        if (res && res.status === 200 && (url.origin === location.origin || url.hostname.includes('gstatic.com') || url.hostname.includes('googleapis.com'))) {
+        const cacheable = url.origin === location.origin || /(gstatic\.com|googleapis\.com|cdnjs\.cloudflare\.com)$/.test(url.hostname);
+        if (res && cacheable && (res.status === 200 || res.type === 'opaque')) {
           const copy = res.clone();
           caches.open(CACHE).then(c => c.put(req, copy));
         }
