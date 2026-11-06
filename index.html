@@ -1,41 +1,1435 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="ar" dir="rtl" class="h-full bg-slate-50">
 <head>
-<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#0f172a">
-<title>برنامج الأستاذ عدي عصفور - الجدول المدرسي الذكي</title>
-<script src="https://cdn.tailwindcss.com"></script>
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
-<style>body{font-family:Cairo,sans-serif}.tab.active{background:#0369a1;color:white}.modal{background:#0008}.table-wrap{overflow:auto} @media print{.no-print{display:none!important}.print-only{display:block!important}body{background:white}table{width:100%;border-collapse:collapse}th,td{border:1px solid #444;padding:5px;text-align:center}.card{box-shadow:none!important;border:0!important}}.print-only{display:none}</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>برنامج الأستاذ عدي عصفور - الجدول المدرسي الذكي</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- SheetJS (xlsx) for Excel Import/Export -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Google Fonts: Cairo -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0f7ff',
+                            100: '#e0effe',
+                            500: '#0284c7',
+                            600: '#0369a1',
+                            700: '#075985',
+                            800: '#0c4a6e',
+                            900: '#0f172a',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Cairo', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Cairo', sans-serif; }
+        
+        /* Print Styles */
+        @media print {
+            .no-print { display: none !important; }
+            .print-only { display: block !important; }
+            body { background: white !important; color: black !important; font-size: 11pt; }
+            .page-break { page-break-before: always; }
+            .shadow-sm, .shadow-md, .shadow-lg, .shadow-xl { box-shadow: none !important; }
+            .border { border-color: #000 !important; }
+            .bg-slate-50, .bg-slate-100, .bg-slate-800 { background-color: transparent !important; }
+            table { width: 100% !important; border-collapse: collapse !important; }
+            th, td { border: 1px solid #333 !important; padding: 6px 4px !important; text-align: center !important; }
+            th { background-color: #f2f2f2 !important; -webkit-print-color-adjust: exact; }
+        }
+        .print-only { display: none; }
+        
+        /* Scrollbar styling */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    </style>
 </head>
-<body class="min-h-screen bg-slate-50 text-slate-800">
-<header class="no-print sticky top-0 z-20 bg-gradient-to-l from-slate-900 to-sky-900 text-white shadow-lg"><div class="mx-auto max-w-7xl px-4 py-4 flex flex-wrap items-center justify-between gap-3"><div><h1 class="text-xl font-extrabold">برنامج الأستاذ عدي عصفور</h1><p class="text-xs text-sky-100">النظام المتكامل لإدارة الجداول والأنصبة المدرسية · <span id="status">الحفظ تلقائي على هذا الجهاز</span></p></div><div class="flex flex-wrap gap-2"><button class="rounded-lg bg-sky-700 px-3 py-2 text-sm" onclick="backup()">تصدير نسخة احتياطية</button><label class="cursor-pointer rounded-lg bg-slate-700 px-3 py-2 text-sm">استيراد نسخة<input type="file" accept=".json" class="hidden" onchange="restore(event)"></label><button class="rounded-lg bg-rose-700 px-3 py-2 text-sm" onclick="resetAll()">إعادة ضبط</button></div></div><nav id="tabs" class="mx-auto flex max-w-7xl gap-2 overflow-x-auto px-4 pb-3"></nav></header>
-<main class="mx-auto max-w-7xl space-y-5 px-4 py-6"><div id="app"></div></main><div id="toast" class="fixed bottom-5 left-5 z-50 hidden rounded-xl bg-slate-900 px-4 py-3 text-sm text-white shadow-lg"></div><div id="dialog"></div>
-<script>
-'use strict';
-const DAYS=[['Sunday','الأحد'],['Monday','الاثنين'],['Tuesday','الثلاثاء'],['Wednesday','الأربعاء'],['Thursday','الخميس']],DEFAULT_SUBJECTS=['الرياضيات','اللغة العربية','العلوم','اللغة الإنجليزية','التربية الإسلامية','الاجتماعيات'],DEFAULT_CLASSES=['الأول أ','الأول ب','الأول ج','الثاني أ','الثاني ب','الثاني ج','الثالث أ','الثالث ب','الثالث ج','الرابع أ','الرابع ب'],KEY='odaai_schedule_app_data';
-const fresh=()=>({teachers:[],subjects:[...DEFAULT_SUBJECTS],classes:DEFAULT_CLASSES.map((name,i)=>({id:'c'+i,name})),schedule:null,dailyPeriods:6});let state;try{state={...fresh(),...JSON.parse(localStorage.getItem(KEY)||'{}')}}catch{state=fresh()}let page='teachers',selectedTeacher='';
-const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-function save(){try{localStorage.setItem(KEY,JSON.stringify(state));document.querySelector('#status').textContent='تم الحفظ تلقائياً'}catch{toast('تعذر الحفظ؛ صدّر نسخة احتياطية لتحافظ على بياناتك')}}
-function toast(s){let e=document.querySelector('#toast');e.textContent=s;e.classList.remove('hidden');setTimeout(()=>e.classList.add('hidden'),3000)}
-const nav=[['teachers','المعلمون والإسناد'],['subjects','المواد'],['classes','الفصول والشعب'],['generator','توليد الجدول'],['master','الجدول العام'],['individual','جدول المعلم']];
-function shell(){document.querySelector('#tabs').innerHTML=nav.map(([id,n])=>`<button onclick="go('${id}')" class="tab ${page===id?'active':''} whitespace-nowrap rounded-lg px-3 py-2 text-sm">${n}</button>`).join('');render()}
-function go(p){page=p;shell()}
-function card(title,body,button=''){return `<section class="card rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><div class="mb-4 flex flex-wrap items-center justify-between gap-3"><h2 class="text-lg font-bold">${title}</h2>${button}</div>${body}</section>`}
-function render(){const root=document.querySelector('#app');if(page==='teachers')root.innerHTML=teachersView();else if(page==='subjects')root.innerHTML=itemsView('المواد الدراسية','subjects');else if(page==='classes')root.innerHTML=itemsView('الفصول والشعب','classes');else if(page==='generator')root.innerHTML=generatorView();else if(page==='master')root.innerHTML=masterView();else root.innerHTML=individualView()}
-function teachersView(){let rows=state.teachers.map(t=>`<tr class="border-t"><td class="p-3 font-bold">${esc(t.name)}</td><td class="p-3">${t.quota} حصة</td><td class="p-3">${(t.assignments||[]).map(a=>`${esc(a.subject)} — ${esc(a.className)} (${a.weeklyPeriods})`).join('<br>')}</td><td class="p-3">${(t.offDays||[]).map(d=>DAYS.find(x=>x[0]===d)?.[1]).join('، ')||'—'}</td><td class="p-3"><button class="text-sky-700" onclick="editTeacher('${t.id}')">تعديل</button> · <button class="text-rose-600" onclick="removeTeacher('${t.id}')">حذف</button></td></tr>`).join('');return card('إدارة المعلمين وإسناد الحصص',`<div class="table-wrap"><table class="w-full text-right text-sm"><thead class="bg-slate-100"><tr><th class="p-3">اسم المعلم</th><th class="p-3">النصاب</th><th class="p-3">الإسنادات</th><th class="p-3">أيام الغياب</th><th class="p-3">الإجراءات</th></tr></thead><tbody>${rows||'<tr><td class="p-8 text-center text-slate-500" colspan="5">لا يوجد معلمون بعد.</td></tr>'}</tbody></table></div>`,`<button class="rounded-xl bg-sky-700 px-4 py-2 text-white" onclick="teacherDialog()">إضافة معلم</button>`)}
-function itemsView(title,key){let arr=state[key],isClass=key==='classes';return card(title,`<div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">${arr.map(x=>{let name=isClass?x.name:x;return `<div class="flex items-center justify-between rounded-xl border p-4 font-semibold">${esc(name)}<button class="text-rose-600" onclick="removeItem('${key}','${esc(name)}')">حذف</button></div>`}).join('')||'<p class="text-slate-500">لا توجد عناصر.</p>'}</div>`,`<button class="rounded-xl bg-sky-700 px-4 py-2 text-white" onclick="addItem('${key}')">إضافة</button>`)}
-function generatorView(){let total=state.teachers.reduce((n,t)=>n+(t.assignments||[]).reduce((a,x)=>a+(+x.weeklyPeriods||0),0),0);return card('توليد الجدول المدرسي الذكي',`<p class="mb-4 text-slate-600">أنشئ جدولاً أسبوعياً مع مراعاة تعارض المعلم والشعبة وأيام غياب المعلمين.</p><label class="mb-4 block font-semibold">عدد الحصص يومياً <select id="periods" class="mr-2 rounded-lg border p-2">${[5,6,7].map(n=>`<option ${state.dailyPeriods===n?'selected':''}>${n}</option>`)}</select></label><div class="mb-5 grid grid-cols-3 gap-3 text-center"><div class="rounded-xl bg-slate-100 p-3">المعلمون<br><b>${state.teachers.length}</b></div><div class="rounded-xl bg-slate-100 p-3">الشعب<br><b>${state.classes.length}</b></div><div class="rounded-xl bg-slate-100 p-3">الحصص المسندة<br><b>${total}</b></div></div><button onclick="generate()" class="rounded-xl bg-sky-700 px-5 py-3 font-bold text-white">بدء التوليد</button>`)}
-function masterView(){if(!state.schedule)return card('الجدول العام','<p>لم يتم توليد جدول بعد. انتقل إلى تبويب توليد الجدول.</p>');let html=DAYS.map(([d,n])=>`<section class="mb-5 overflow-hidden rounded-xl border bg-white"><h3 class="bg-slate-900 p-3 font-bold text-white">${n}</h3><div class="table-wrap"><table class="w-full text-center text-xs"><thead><tr><th class="bg-slate-100 p-2">الشعبة</th>${Array.from({length:state.dailyPeriods},(_,i)=>`<th class="bg-slate-100 p-2">الحصة ${i+1}</th>`).join('')}</tr></thead><tbody>${state.classes.map(c=>`<tr><th class="border p-2">${esc(c.name)}</th>${Array.from({length:state.dailyPeriods},(_,i)=>{let x=state.schedule[d]?.[i+1]?.[c.name];return `<td class="border p-2">${x?esc(x.subject)+'<br><small>'+esc(x.teacherName)+'</small>':'—'}</td>`}).join('')}</tr>`).join('')}</tbody></table></div></section>`).join('');return `<div class="no-print mb-3 flex gap-2"><button onclick="print()" class="rounded-lg bg-slate-800 px-4 py-2 text-white">طباعة / PDF</button><button onclick="exportExcel()" class="rounded-lg bg-emerald-700 px-4 py-2 text-white">تصدير Excel</button></div>${html}`}
-function individualView(){let sel=state.teachers.find(t=>t.id===selectedTeacher)||state.teachers[0];if(!sel)return card('جدول المعلم الفردي','<p>أضف معلماً لعرض جدوله.</p>');selectedTeacher=sel.id;let rows=DAYS.map(([d,n])=>`<tr><th class="border p-3">${n}</th>${Array.from({length:state.dailyPeriods},(_,i)=>{let found;for(const cls of state.classes){let c=state.schedule?.[d]?.[i+1]?.[cls.name];if(c?.teacherId===sel.id){found=`${c.subject}<br>${cls.name}`;break}}return `<td class="border p-2">${found||'—'}</td>`}).join('')}</tr>`).join('');return card('جدول المعلم الفردي',`<label class="mb-4 block">اختر المعلم <select class="rounded-lg border p-2" onchange="selectedTeacher=this.value;render()">${state.teachers.map(t=>`<option value="${t.id}" ${sel.id===t.id?'selected':''}>${esc(t.name)}</option>`).join('')}</select></label><h3 class="mb-3 text-center text-xl font-bold">${esc(sel.name)}</h3><div class="table-wrap"><table class="w-full text-center text-sm"><thead><tr><th class="border p-2">اليوم</th>${Array.from({length:state.dailyPeriods},(_,i)=>`<th class="border p-2">الحصة ${i+1}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div><button onclick="print()" class="no-print mt-4 rounded-lg bg-slate-800 px-4 py-2 text-white">طباعة</button>`)}
-function teacherDialog(t){t=t||{};let id=t.id||'';document.querySelector('#dialog').innerHTML=`<div class="modal fixed inset-0 z-40 grid place-items-center p-4"><form class="max-h-[90vh] w-full max-w-xl space-y-3 overflow-auto rounded-2xl bg-white p-5" onsubmit="saveTeacherForm(event,'${id}')"><h2 class="text-xl font-bold">${id?'تعديل المعلم':'إضافة معلم'}</h2><label class="block">الاسم<input id="tn" required class="mt-1 w-full rounded-lg border p-2" value="${esc(t.name||'')}"></label><label class="block">النصاب الأسبوعي<input id="tq" type="number" min="1" max="35" value="${t.quota||15}" class="mt-1 w-full rounded-lg border p-2"></label><p class="font-bold">أيام الغياب</p><div class="flex flex-wrap gap-3">${DAYS.map(([d,n])=>`<label><input type="checkbox" name="off" value="${d}" ${(t.offDays||[]).includes(d)?'checked':''}> ${n}</label>`).join('')}</div><div id="assignments">${(t.assignments?.length?t.assignments:[{subject:state.subjects[0]||'',className:state.classes[0]?.name||'',weeklyPeriods:2}]).map(a=>assignmentRow(a)).join('')}</div><button type="button" class="rounded-lg border px-3 py-2" onclick="document.querySelector('#assignments').insertAdjacentHTML('beforeend',assignmentRow({subject:state.subjects[0]||'',className:state.classes[0]?.name||'',weeklyPeriods:2}))">إضافة إسناد</button><div class="flex justify-end gap-2"><button type="button" class="rounded-lg bg-slate-200 px-4 py-2" onclick="document.querySelector('#dialog').innerHTML=''">إلغاء</button><button class="rounded-lg bg-sky-700 px-4 py-2 text-white">حفظ</button></div></form></div>`}
-function assignmentRow(a){return `<div class="my-2 flex gap-2"><select class="asub min-w-0 flex-1 rounded-lg border p-2">${state.subjects.map(s=>`<option ${s===a.subject?'selected':''}>${esc(s)}</option>`).join('')}</select><select class="acls min-w-0 flex-1 rounded-lg border p-2">${state.classes.map(c=>`<option ${c.name===a.className?'selected':''}>${esc(c.name)}</option>`).join('')}</select><input class="aper w-20 rounded-lg border p-2" type="number" min="1" max="10" value="${a.weeklyPeriods||2}"><button type="button" class="text-rose-600" onclick="this.parentElement.remove()">×</button></div>`}
-function saveTeacherForm(e,id){e.preventDefault();let t={id:id||'t'+Date.now(),name:document.querySelector('#tn').value.trim(),quota:+document.querySelector('#tq').value||15,offDays:[...document.querySelectorAll('[name=off]:checked')].map(x=>x.value),assignments:[...document.querySelectorAll('#assignments>div')].map(r=>({subject:r.querySelector('.asub').value,className:r.querySelector('.acls').value,weeklyPeriods:+r.querySelector('.aper').value||1}))};let i=state.teachers.findIndex(x=>x.id===id);if(i<0)state.teachers.push(t);else state.teachers[i]=t;save();document.querySelector('#dialog').innerHTML='';shell();toast('تم حفظ بيانات المعلم')}
-function editTeacher(id){teacherDialog(state.teachers.find(t=>t.id===id))}function removeTeacher(id){if(confirm('حذف هذا المعلم؟')){state.teachers=state.teachers.filter(t=>t.id!==id);save();render()}}
-function addItem(key){let name=prompt(key==='subjects'?'اسم المادة':'اسم الشعبة');if(!name?.trim())return;name=name.trim();if(key==='subjects'){if(!state.subjects.includes(name))state.subjects.push(name)}else if(!state.classes.some(c=>c.name===name))state.classes.push({id:'c'+Date.now(),name});save();render()}
-function removeItem(key,name){if(!confirm('حذف '+name+'؟'))return;if(key==='subjects')state.subjects=state.subjects.filter(x=>x!==name);else state.classes=state.classes.filter(x=>x.name!==name);save();render()}
-function generate(){state.dailyPeriods=+document.querySelector('#periods').value;let tasks=[];state.teachers.forEach(t=>(t.assignments||[]).forEach(a=>{for(let i=0;i<a.weeklyPeriods;i++)tasks.push({teacherId:t.id,teacherName:t.name,subject:a.subject,className:a.className,offDays:t.offDays||[]})}));tasks.sort(()=>Math.random()-.5);let grid={},busy={};DAYS.forEach(([d])=>{grid[d]={};busy[d]={};for(let p=1;p<=state.dailyPeriods;p++){grid[d][p]={};busy[d][p]=new Set}});let missed=0;for(const t of tasks){let placed=false;for(const [d] of DAYS.filter(([d])=>!t.offDays.includes(d)).sort(()=>Math.random()-.5)){for(let p=1;p<=state.dailyPeriods;p++)if(!grid[d][p][t.className]&&!busy[d][p].has(t.teacherId)){grid[d][p][t.className]={teacherId:t.teacherId,teacherName:t.teacherName,subject:t.subject};busy[d][p].add(t.teacherId);placed=true;break}if(placed)break}if(!placed)missed++}state.schedule=grid;save();go('master');toast(missed?`تم التوليد، وتعذر إسناد ${missed} حصة بسبب القيود`:'تم توليد الجدول وحفظه')}
-function backup(){let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(state,null,2)],{type:'application/json'}));a.download='odaai-school-backup.json';a.click();URL.revokeObjectURL(a.href)}function restore(e){let f=e.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{try{let x=JSON.parse(r.result);if(!Array.isArray(x.teachers)||!Array.isArray(x.classes)||!Array.isArray(x.subjects))throw 0;state={...fresh(),...x};save();shell();toast('تم استيراد النسخة الاحتياطية')}catch{toast('ملف النسخة الاحتياطية غير صالح')}};r.readAsText(f);e.target.value=''}function resetAll(){if(confirm('سيتم حذف البيانات المحفوظة من هذا الجهاز. هل تريد المتابعة؟')){state=fresh();save();shell()}}
-function exportExcel(){if(!state.schedule)return toast('لا يوجد جدول لتصديره');if(!window.XLSX)return toast('تعذر تحميل أداة Excel؛ تحقق من اتصال الإنترنت');let wb=XLSX.utils.book_new();DAYS.forEach(([d,n])=>{let rows=[['الشعبة',...Array.from({length:state.dailyPeriods},(_,i)=>`الحصة ${i+1}`)],...state.classes.map(c=>[c.name,...Array.from({length:state.dailyPeriods},(_,i)=>{let x=state.schedule[d]?.[i+1]?.[c.name];return x?`${x.subject} (${x.teacherName})`:'-'})])];XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(rows),n)});XLSX.writeFile(wb,'جدول_الأستاذ_عدي_عصفور.xlsx')}
-shell();
-</script></body></html>
+<body class="h-full flex flex-col text-slate-800 bg-slate-50 antialiased selection:bg-brand-500 selection:text-white">
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="fixed top-5 left-5 z-50 flex flex-col gap-2 no-print pointer-events-none"></div>
+
+    <!-- Header / Navbar -->
+    <header class="bg-gradient-to-r from-brand-900 via-brand-800 to-brand-900 text-white shadow-lg no-print sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-20">
+                <!-- Branding -->
+                <div class="flex items-center space-x-3 space-x-reverse">
+                    <div class="bg-white/10 p-3 rounded-2xl backdrop-blur-md border border-white/20">
+                        <i data-lucide="graduation-cap" class="w-8 h-8 text-brand-100"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-xl sm:text-2xl font-extrabold tracking-tight text-white flex items-center gap-2">
+                            برنامج الأستاذ عدي عصفور
+                            <span class="text-xs bg-amber-400 text-slate-900 font-bold px-2 py-0.5 rounded-full">النسخة الذكية</span>
+                        </h1>
+                        <p class="text-xs text-brand-100/80 font-medium flex items-center gap-2">
+                            النظام المتكامل لإدارة الجداول والأنصبة المدرسية
+                            <!-- Storage Status Indicator -->
+                            <span id="save-status-badge" class="inline-flex items-center gap-1 text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 px-2 py-0.5 rounded-full font-semibold">
+                                <i data-lucide="check-circle-2" class="w-3 h-3"></i>
+                                <span>محفوظ تلقائياً</span>
+                            </span>
+                            <!-- Google Sheets Sync Status Indicator -->
+                            <span id="gsheet-status-badge" class="hidden inline-flex items-center gap-1 text-[10px] bg-emerald-500 text-white font-bold px-2 py-0.5 rounded-full animate-pulse">
+                                <i data-lucide="cloud" class="w-3 h-3"></i>
+                                <span>متصل بـ Google Sheets</span>
+                            </span>
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Quick Global Actions -->
+                <div class="hidden md:flex items-center gap-2">
+                    <button onclick="syncFromGoogleSheets()" class="flex items-center gap-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-lg transition-all shadow-sm">
+                        <i data-lucide="cloud-download" class="w-4 h-4"></i>
+                        <span>مزامنة من Google Sheets</span>
+                    </button>
+                    <button onclick="exportFullBackup()" class="flex items-center gap-1.5 px-3 py-2 bg-sky-700 hover:bg-sky-600 text-white text-xs font-semibold rounded-lg transition-all shadow-sm">
+                        <i data-lucide="download-cloud" class="w-4 h-4"></i>
+                        <span>تصدير نسخة شمولية</span>
+                    </button>
+                    <label class="flex items-center gap-1.5 px-3 py-2 bg-slate-700 hover:bg-slate-600 text-white text-xs font-semibold rounded-lg transition-all cursor-pointer shadow-sm">
+                        <i data-lucide="upload-cloud" class="w-4 h-4"></i>
+                        <span>استيراد بيانات</span>
+                        <input type="file" id="import-excel-file" accept=".xlsx, .xls, .csv" class="hidden" onchange="importDataFromExcel(event)">
+                    </label>
+                    <button onclick="confirmResetData()" class="flex items-center gap-1.5 px-3 py-2 bg-rose-600/80 hover:bg-rose-600 text-white text-xs font-semibold rounded-lg transition-all">
+                        <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+                        <span>إعادة ضبط</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <div class="bg-brand-900/60 border-t border-brand-700/50 backdrop-blur-sm overflow-x-auto">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <nav class="flex space-x-1 space-x-reverse min-w-max py-2" id="nav-tabs">
+                    <button onclick="switchTab('teachers')" id="tab-btn-teachers" class="tab-btn active flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-all text-white bg-brand-600 shadow">
+                        <i data-lucide="users" class="w-4 h-4"></i>
+                        <span>1. المعلمون والإسناد</span>
+                    </button>
+                    <button onclick="switchTab('subjects')" id="tab-btn-subjects" class="tab-btn flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-all text-slate-300 hover:text-white hover:bg-brand-800">
+                        <i data-lucide="book-open" class="w-4 h-4"></i>
+                        <span>2. المواد الدراسية</span>
+                    </button>
+                    <button onclick="switchTab('classes')" id="tab-btn-classes" class="tab-btn flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-all text-slate-300 hover:text-white hover:bg-brand-800">
+                        <i data-lucide="layout-grid" class="w-4 h-4"></i>
+                        <span>3. الفصول والشعب</span>
+                    </button>
+                    <button onclick="switchTab('generator')" id="tab-btn-generator" class="tab-btn flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-all text-slate-300 hover:text-white hover:bg-brand-800">
+                        <i data-lucide="cpu" class="w-4 h-4"></i>
+                        <span>4. توليد الجدول الذكي</span>
+                    </button>
+                    <button onclick="switchTab('master-schedule')" id="tab-btn-master-schedule" class="tab-btn flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-all text-slate-300 hover:text-white hover:bg-brand-800">
+                        <i data-lucide="calendar" class="w-4 h-4"></i>
+                        <span>5. الجدول العام للمدرسة</span>
+                    </button>
+                    <button onclick="switchTab('teacher-schedule')" id="tab-btn-teacher-schedule" class="tab-btn flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-all text-slate-300 hover:text-white hover:bg-brand-800">
+                        <i data-lucide="user-check" class="w-4 h-4"></i>
+                        <span>6. جدول المعلم الفردي</span>
+                    </button>
+                    <button onclick="switchTab('google-sheets')" id="tab-btn-google-sheets" class="tab-btn flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-all text-amber-300 hover:text-white hover:bg-brand-800">
+                        <i data-lucide="sheet" class="w-4 h-4"></i>
+                        <span>7. الربط مع Google Sheets</span>
+                    </button>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+        <!-- 1. TEACHERS & ASSIGNMENTS TAB -->
+        <section id="tab-teachers" class="tab-content block space-y-6">
+            <!-- Top Controls -->
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                    <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                        <i data-lucide="users" class="text-brand-600 w-5 h-5"></i>
+                        إدارة المعلمين وإسناد الحصص والقيود
+                    </h2>
+                    <p class="text-xs text-slate-500">إضافة وإدارة بيانات المعلمين، المواد التي يدرسونها، الشعب المسندة، وأيام الغياب المحظورة.</p>
+                </div>
+                <div class="flex flex-wrap gap-2 w-full md:w-auto">
+                    <button onclick="openTeacherModal()" class="flex-1 md:flex-none flex items-center justify-center gap-2 bg-brand-600 hover:bg-brand-700 text-white px-4 py-2.5 rounded-xl font-medium text-sm transition shadow-sm">
+                        <i data-lucide="user-plus" class="w-4 h-4"></i>
+                        إضافة معلم جديد
+                    </button>
+                    <button onclick="deleteSelectedTeachers()" class="flex items-center justify-center gap-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 px-3 py-2.5 rounded-xl font-medium text-xs transition">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                        حذف المحددين
+                    </button>
+                    <button onclick="deleteAllTeachers()" class="flex items-center justify-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2.5 rounded-xl font-medium text-xs transition">
+                        حذف الكل
+                    </button>
+                </div>
+            </div>
+
+            <!-- Teachers List Card -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-right text-sm">
+                        <thead class="bg-slate-50 text-slate-600 border-b border-slate-200 font-bold">
+                            <tr>
+                                <th class="p-4 w-10">
+                                    <input type="checkbox" id="select-all-teachers" onchange="toggleSelectAllTeachers(this)" class="rounded border-slate-300 text-brand-600 focus:ring-brand-500">
+                                </th>
+                                <th class="p-4">اسم المعلم</th>
+                                <th class="p-4">النصاب الأسبوعي</th>
+                                <th class="p-4">المواد والإسنادات</th>
+                                <th class="p-4">أيام الغياب / القيود</th>
+                                <th class="p-4 text-center">الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody id="teachers-table-body" class="divide-y divide-slate-100 text-slate-700">
+                            <!-- Populated via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- 2. SUBJECTS TAB -->
+        <section id="tab-subjects" class="tab-content hidden space-y-6">
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                    <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                        <i data-lucide="book-open" class="text-brand-600 w-5 h-5"></i>
+                        إدارة المواد الدراسية
+                    </h2>
+                    <p class="text-xs text-slate-500">إضافة وتعديل قائمة المواد التلقائية والخاصة بالمدرسة.</p>
+                </div>
+                <div class="flex gap-2 w-full md:w-auto">
+                    <button onclick="openSubjectModal()" class="flex-1 md:flex-none flex items-center justify-center gap-2 bg-brand-600 hover:bg-brand-700 text-white px-4 py-2.5 rounded-xl font-medium text-sm transition shadow-sm">
+                        <i data-lucide="plus" class="w-4 h-4"></i>
+                        إضافة مادة جديدة
+                    </button>
+                    <button onclick="deleteAllSubjects()" class="flex items-center justify-center gap-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 px-3 py-2.5 rounded-xl font-medium text-xs transition">
+                        حذف كافة المواد
+                    </button>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4" id="subjects-grid">
+                <!-- Subject Cards Populated via JS -->
+            </div>
+        </section>
+
+        <!-- 3. CLASSES TAB -->
+        <section id="tab-classes" class="tab-content hidden space-y-6">
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                    <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                        <i data-lucide="layout-grid" class="text-brand-600 w-5 h-5"></i>
+                        إدارة الفصول والشعب الدراسية
+                    </h2>
+                    <p class="text-xs text-slate-500">التحكم بالشعب الدراسية والمستويات (تم إدراج 11 شعبة تلقائياً).</p>
+                </div>
+                <div class="flex gap-2 w-full md:w-auto">
+                    <button onclick="openClassModal()" class="flex-1 md:flex-none flex items-center justify-center gap-2 bg-brand-600 hover:bg-brand-700 text-white px-4 py-2.5 rounded-xl font-medium text-sm transition shadow-sm">
+                        <i data-lucide="plus" class="w-4 h-4"></i>
+                        إضافة شعبة جديدة
+                    </button>
+                    <button onclick="resetDefaultClasses()" class="flex items-center justify-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2.5 rounded-xl font-medium text-xs transition">
+                        استعادة الشعب الافتراضية (11 شعبة)
+                    </button>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4" id="classes-grid">
+                <!-- Class Cards Populated via JS -->
+            </div>
+        </section>
+
+        <!-- 4. GENERATOR TAB -->
+        <section id="tab-generator" class="tab-content hidden space-y-6">
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200/80 max-w-3xl mx-auto space-y-6">
+                <div class="text-center space-y-2">
+                    <div class="inline-flex p-3 bg-brand-50 text-brand-600 rounded-2xl mb-2">
+                        <i data-lucide="sparkles" class="w-8 h-8"></i>
+                    </div>
+                    <h2 class="text-2xl font-bold text-slate-800">توليد الجدول المدرسي الذكي</h2>
+                    <p class="text-sm text-slate-500 max-w-md mx-auto">تعتمد الخوارزمية الذكية لبرنامج الأستاذ عدي عصفور على توزيع عادل ودقيق للحصص بدون أي تعارضات مع مراعاة قيود الغياب لكل معلم.</p>
+                </div>
+
+                <div class="bg-slate-50 p-5 rounded-xl border border-slate-200 space-y-4">
+                    <label class="block font-bold text-sm text-slate-700">عدد الحصص اليومية المطلوب:</label>
+                    <div class="grid grid-cols-3 gap-3">
+                        <label class="flex items-center justify-center gap-2 p-3 bg-white border border-slate-200 rounded-xl cursor-pointer hover:border-brand-500 transition shadow-sm font-bold text-sm">
+                            <input type="radio" name="daily-periods" value="5" onchange="updateDailyPeriods(5)" class="text-brand-600 focus:ring-brand-500">
+                            5 حصص يومياً
+                        </label>
+                        <label class="flex items-center justify-center gap-2 p-3 bg-white border border-slate-200 rounded-xl cursor-pointer hover:border-brand-500 transition shadow-sm font-bold text-sm">
+                            <input type="radio" name="daily-periods" value="6" onchange="updateDailyPeriods(6)" class="text-brand-600 focus:ring-brand-500">
+                            6 حصص يومياً
+                        </label>
+                        <label class="flex items-center justify-center gap-2 p-3 bg-white border border-slate-200 rounded-xl cursor-pointer hover:border-brand-500 transition shadow-sm font-bold text-sm">
+                            <input type="radio" name="daily-periods" value="7" onchange="updateDailyPeriods(7)" class="text-brand-600 focus:ring-brand-500">
+                            7 حصص يومياً
+                        </label>
+                    </div>
+                </div>
+
+                <div id="stats-summary" class="grid grid-cols-3 gap-4 text-center">
+                    <div class="p-4 bg-slate-50 rounded-xl border border-slate-100">
+                        <span class="block text-xs text-slate-500 font-semibold">إجمالي المعلمين</span>
+                        <span id="stat-teachers-count" class="text-xl font-extrabold text-brand-600">0</span>
+                    </div>
+                    <div class="p-4 bg-slate-50 rounded-xl border border-slate-100">
+                        <span class="block text-xs text-slate-500 font-semibold">إجمالي الشعب</span>
+                        <span id="stat-classes-count" class="text-xl font-extrabold text-brand-600">0</span>
+                    </div>
+                    <div class="p-4 bg-slate-50 rounded-xl border border-slate-100">
+                        <span class="block text-xs text-slate-500 font-semibold">مجموع الحصص المسندة</span>
+                        <span id="stat-periods-count" class="text-xl font-extrabold text-emerald-600">0</span>
+                    </div>
+                </div>
+
+                <button onclick="generateScheduleAlgorithm()" class="w-full py-4 bg-brand-600 hover:bg-brand-700 text-white font-extrabold text-lg rounded-xl shadow-lg transition flex items-center justify-center gap-2">
+                    <i data-lucide="play-circle" class="w-6 h-6"></i>
+                    بدء عملية التوليد الذكي الآن
+                </button>
+            </div>
+        </section>
+
+        <!-- 5. MASTER SCHEDULE TAB -->
+        <section id="tab-master-schedule" class="tab-content hidden space-y-6">
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 no-print">
+                <div>
+                    <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                        <i data-lucide="calendar" class="text-brand-600 w-5 h-5"></i>
+                        الجدول العام لجميع الفصول والشعب
+                    </h2>
+                    <p class="text-xs text-slate-500">عرض الجدول الشامل لكافة الصفوف الدراسية ومتابعة توزيع الحصص.</p>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="window.print()" class="flex items-center gap-2 bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-xl text-sm font-semibold transition">
+                        <i data-lucide="printer" class="w-4 h-4"></i>
+                        طباعة / حفظ PDF
+                    </button>
+                    <button onclick="exportScheduleToExcel()" class="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-sm font-semibold transition">
+                        <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
+                        تصدير لـ Excel
+                    </button>
+                </div>
+            </div>
+
+            <!-- Print Header -->
+            <div class="print-only text-center mb-6">
+                <h1 class="text-2xl font-black mb-1">برنامج الأستاذ عدي عصفور - الجدول المدرسي العام</h1>
+                <p class="text-sm">العام الدراسي الحالي | تم استخراج الجدول بتاريخ: <span id="print-date"></span></p>
+            </div>
+
+            <div id="master-schedule-container" class="space-y-8">
+                <!-- Master Schedule Tables per day populated via JS -->
+            </div>
+        </section>
+
+        <!-- 6. TEACHER SCHEDULE TAB -->
+        <section id="tab-teacher-schedule" class="tab-content hidden space-y-6">
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 no-print">
+                <div class="flex items-center gap-3 w-full md:w-auto">
+                    <label class="font-bold text-sm text-slate-700 min-w-max">اختر المعلم:</label>
+                    <select id="teacher-select-dropdown" onchange="renderTeacherIndividualSchedule()" class="w-full md:w-64 border border-slate-300 rounded-xl p-2.5 text-sm font-medium focus:ring-brand-500 focus:border-brand-500">
+                        <!-- Populated via JS -->
+                    </select>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="window.print()" class="flex items-center gap-2 bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-xl text-sm font-semibold transition">
+                        <i data-lucide="printer" class="w-4 h-4"></i>
+                        طباعة جدول المعلم (PDF)
+                    </button>
+                </div>
+            </div>
+
+            <div id="teacher-print-card" class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200/80 space-y-6">
+                <!-- Print Header Specific to Teacher -->
+                <div class="text-center border-b border-slate-200 pb-4">
+                    <h1 class="text-2xl font-black text-brand-900">برنامج الأستاذ عدي عصفور</h1>
+                    <h3 class="text-lg font-bold text-slate-700 mt-1" id="teacher-schedule-title">جدول المعلم: -</h3>
+                    <p class="text-xs text-slate-500">النصاب الأسبوعي: <span id="teacher-schedule-quota" class="font-bold text-brand-600">0</span> حصة</p>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-center border-collapse" id="teacher-schedule-table">
+                        <thead>
+                            <tr class="bg-brand-900 text-white font-bold text-sm">
+                                <th class="p-3 border border-brand-800">اليوم / الحصة</th>
+                                <!-- Dynamic period headers -->
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-200 text-sm">
+                            <!-- Populated via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- 7. GOOGLE SHEETS INTEGRATION TAB -->
+        <section id="tab-google-sheets" class="tab-content hidden space-y-6">
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200/80 space-y-6 max-w-4xl mx-auto">
+                <div class="border-b pb-4 flex items-center gap-3">
+                    <div class="p-3 bg-emerald-100 text-emerald-800 rounded-xl">
+                        <i data-lucide="cloud-lightning" class="w-7 h-7"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-xl font-bold text-slate-800">الربط والمزامنة السحابية الفورية مع Google Sheets</h2>
+                        <p class="text-xs text-slate-500">احفظ واسترجع كامل أعمالك وجدول المدرسة مباشرة من وإلى جدول بيانات جوجل بكل سهولة.</p>
+                    </div>
+                </div>
+
+                <!-- Webhook URL Setup -->
+                <div class="space-y-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
+                    <label class="block font-bold text-sm text-slate-800">رابط تطبيق Google Web App (Apps Script URL):</label>
+                    <div class="flex gap-2">
+                        <input type="url" id="google-sheets-url" class="flex-1 border border-slate-300 rounded-xl p-2.5 text-xs ltr font-mono" placeholder="https://script.google.com/macros/s/.../exec">
+                        <button onclick="saveGoogleSheetsUrl()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5">
+                            <i data-lucide="save" class="w-4 h-4"></i> حفظ وتفعيل
+                        </button>
+                    </div>
+                    <p class="text-[11px] text-slate-500">عند تفعيل الرابط، سيقوم البرنامج بالحفظ التلقائي في Google Sheets فور إجراء أي خطوة.</p>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <button onclick="syncToGoogleSheets()" class="p-4 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-900 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition">
+                        <i data-lucide="cloud-upload" class="w-5 h-5 text-emerald-600"></i>
+                        حفظ ومزامنة البيانات إلى Google Sheets الآن
+                    </button>
+                    <button onclick="syncFromGoogleSheets()" class="p-4 bg-sky-50 hover:bg-sky-100 border border-sky-200 text-sky-900 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition">
+                        <i data-lucide="cloud-download" class="w-5 h-5 text-sky-600"></i>
+                        استرجاع ومزامنة البيانات من Google Sheets
+                    </button>
+                </div>
+
+                <!-- Quick Tutorial Step-by-Step -->
+                <div class="bg-amber-50 border border-amber-200 p-5 rounded-xl space-y-3">
+                    <h4 class="font-bold text-amber-900 text-sm flex items-center gap-2">
+                        <i data-lucide="help-circle" class="w-4 h-4"></i> كيف تقوم بإنشاء رابط التوصيل في Google Sheets؟ (مرة واحدة فقط)
+                    </h4>
+                    <ol class="list-decimal list-inside text-xs text-amber-800 space-y-1.5 leading-relaxed font-medium">
+                        <li>افتح جدول بيانات جديد في <b>Google Sheets</b>.</li>
+                        <li>من القائمة العلوية اختر <b>Extensions (الإضافات)</b> ثم <b>Apps Script</b>.</li>
+                        <li>امسح أي كود موجود هناك، ثم انسخ الكود البرمجي أدناه ولصقه في المحرر:</li>
+                    </ol>
+
+                    <!-- Apps Script Code Box -->
+                    <div class="relative">
+                        <textarea readonly id="apps-script-code" class="w-full h-40 bg-slate-900 text-emerald-400 p-3 rounded-lg text-[11px] font-mono leading-relaxed" dir="ltr">
+function doGet() {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  var data = sheet.getRange("A1").getValue();
+  return ContentService.createTextOutput(data || "{}").setMimeType(ContentService.MimeType.JSON);
+}
+
+function doPost(e) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  sheet.getRange("A1").setValue(e.postData.contents);
+  return ContentService.createTextOutput("SUCCESS").setMimeType(ContentService.MimeType.TEXT);
+}
+                        </textarea>
+                        <button onclick="copyAppsScriptCode()" class="absolute top-2 right-2 bg-white/20 hover:bg-white/30 text-white text-[10px] px-2.5 py-1 rounded font-bold">نسخ الكود</button>
+                    </div>
+
+                    <ol start="4" class="list-decimal list-inside text-xs text-amber-800 space-y-1.5 leading-relaxed font-medium">
+                        <li>اضغط على <b>Deploy (نشر)</b> &larr; <b>New Deployment (نشر جديد)</b>.</li>
+                        <li>اختر نوع النشر <b>Web app (تطبيق ويب)</b>.</li>
+                        <li>اجعل خيار "Who has access (من يمكنه الوصول)" يساوي <b>Anyone (أي شخص)</b> ثم اضغط Deploy.</li>
+                        <li>انسخ رابط Web App وضعه في الخانة العلوية واضغط "حفظ وتفعيل".</li>
+                    </ol>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="bg-white border-t border-slate-200 py-4 no-print mt-auto">
+        <div class="max-w-7xl mx-auto px-4 text-center text-xs text-slate-500 font-medium">
+            برنامج الأستاذ عدي عصفور &copy; جميع الحقوق محفوظة - نظام الجداول المدرسية الذكي
+        </div>
+    </footer>
+
+    <!-- MODALS -->
+
+    <!-- Teacher Modal -->
+    <div id="modal-teacher" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 space-y-5">
+            <div class="flex justify-between items-center border-b pb-3">
+                <h3 class="text-lg font-bold text-slate-800" id="modal-teacher-title">إضافة معلم جديد</h3>
+                <button onclick="closeTeacherModal()" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+
+            <form id="form-teacher" onsubmit="saveTeacher(event)" class="space-y-4">
+                <input type="hidden" id="teacher-id">
+                
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">اسم المعلم الكامل</label>
+                    <input type="text" id="teacher-name" required class="w-full border border-slate-300 rounded-xl p-2.5 text-sm focus:ring-brand-500 focus:border-brand-500" placeholder="مثال: أ. أحمد محمود">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">النصاب الأسبوعي الافتراضي (حصص)</label>
+                    <input type="number" id="teacher-quota" value="15" min="1" max="35" required class="w-full border border-slate-300 rounded-xl p-2.5 text-sm focus:ring-brand-500 focus:border-brand-500">
+                </div>
+
+                <!-- Off Days -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-2">أيام الغياب المحظورة (لن يتم إسناد حصص فيها)</label>
+                    <div class="flex flex-wrap gap-3">
+                        <label class="inline-flex items-center gap-1.5 text-xs bg-slate-50 border p-2 rounded-lg cursor-pointer">
+                            <input type="checkbox" name="off-days" value="Sunday" class="rounded text-brand-600"> الأحد
+                        </label>
+                        <label class="inline-flex items-center gap-1.5 text-xs bg-slate-50 border p-2 rounded-lg cursor-pointer">
+                            <input type="checkbox" name="off-days" value="Monday" class="rounded text-brand-600"> الاثنين
+                        </label>
+                        <label class="inline-flex items-center gap-1.5 text-xs bg-slate-50 border p-2 rounded-lg cursor-pointer">
+                            <input type="checkbox" name="off-days" value="Tuesday" class="rounded text-brand-600"> الثلاثاء
+                        </label>
+                        <label class="inline-flex items-center gap-1.5 text-xs bg-slate-50 border p-2 rounded-lg cursor-pointer">
+                            <input type="checkbox" name="off-days" value="Wednesday" class="rounded text-brand-600"> الأربعاء
+                        </label>
+                        <label class="inline-flex items-center gap-1.5 text-xs bg-slate-50 border p-2 rounded-lg cursor-pointer">
+                            <input type="checkbox" name="off-days" value="Thursday" class="rounded text-brand-600"> الخميس
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Subject & Class Assignment section -->
+                <div class="border-t pt-4 space-y-3">
+                    <div class="flex justify-between items-center">
+                        <h4 class="text-xs font-extrabold text-brand-700 uppercase">إسناد المواد والشعب</h4>
+                        <button type="button" onclick="addAssignmentRow()" class="text-xs bg-brand-50 text-brand-600 hover:bg-brand-100 font-bold px-2.5 py-1.5 rounded-lg flex items-center gap-1">
+                            <i data-lucide="plus" class="w-3.5 h-3.5"></i> إضافة إسناد
+                        </button>
+                    </div>
+                    <div id="assignments-container" class="space-y-2">
+                        <!-- Dynamic assignment rows -->
+                    </div>
+                </div>
+
+                <div class="flex justify-end gap-2 border-t pt-4">
+                    <button type="button" onclick="closeTeacherModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl">إلغاء</button>
+                    <button type="submit" class="px-5 py-2 bg-brand-600 hover:bg-brand-700 text-white text-xs font-semibold rounded-xl shadow-sm">حفظ المعلم</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Subject Modal -->
+    <div id="modal-subject" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 space-y-4">
+            <h3 class="text-lg font-bold text-slate-800">إضافة مادة جديدة</h3>
+            <form id="form-subject" onsubmit="saveSubject(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">اسم المادة</label>
+                    <input type="text" id="subject-name" required class="w-full border border-slate-300 rounded-xl p-2.5 text-sm" placeholder="مثال: الحاسوب">
+                </div>
+                <div class="flex justify-end gap-2 border-t pt-4">
+                    <button type="button" onclick="closeSubjectModal()" class="px-4 py-2 bg-slate-100 text-slate-700 text-xs font-semibold rounded-xl">إلغاء</button>
+                    <button type="submit" class="px-5 py-2 bg-brand-600 text-white text-xs font-semibold rounded-xl">حفظ</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Class Modal -->
+    <div id="modal-class" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 space-y-4">
+            <h3 class="text-lg font-bold text-slate-800" id="modal-class-title">إضافة شعبة جديدة</h3>
+            <form id="form-class" onsubmit="saveClass(event)" class="space-y-4">
+                <input type="hidden" id="class-id">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">اسم الشعبة / الفصل</label>
+                    <input type="text" id="class-name" required class="w-full border border-slate-300 rounded-xl p-2.5 text-sm" placeholder="مثال: الخامس أ">
+                </div>
+                <div class="flex justify-end gap-2 border-t pt-4">
+                    <button type="button" onclick="closeClassModal()" class="px-4 py-2 bg-slate-100 text-slate-700 text-xs font-semibold rounded-xl">إلغاء</button>
+                    <button type="submit" class="px-5 py-2 bg-brand-600 text-white text-xs font-semibold rounded-xl">حفظ</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        // Global Application State
+        const DEFAULT_SUBJECTS = ['الرياضيات', 'اللغة العربية', 'العلوم', 'اللغة الإنجليزية', 'التربية الإسلامية', 'الاجتماعيات'];
+        const DEFAULT_CLASSES = [
+            'الأول أ', 'الأول ب', 'الأول ج',
+            'الثاني أ', 'الثاني ب', 'الثاني ج',
+            'الثالث أ', 'الثالث ب', 'الثالث ج',
+            'الرابع أ', 'الرابع ب'
+        ];
+        const DAYS = [
+            { id: 'Sunday', name: 'الأحد' },
+            { id: 'Monday', name: 'الاثنين' },
+            { id: 'Tuesday', name: 'الثلاثاء' },
+            { id: 'Wednesday', name: 'الأربعاء' },
+            { id: 'Thursday', name: 'الخميس' }
+        ];
+
+        let state = {
+            teachers: [],
+            subjects: [],
+            classes: [],
+            schedule: null, // Generated timetable structure
+            dailyPeriods: 6,
+            googleSheetsUrl: 'https://script.google.com/macros/s/AKfycbx_Xa6-m0wJS2CzENawPG9sRkxNZGnsfqe7QF62oSoLgkxCyyW5AgIh_PDFRQ2Eb0uo/exec'
+        };
+
+        // Initialize App
+        window.onload = function() {
+            loadInitialData();
+            lucide.createIcons();
+            document.getElementById('print-date').innerText = new Date().toLocaleDateString('ar-EG');
+        };
+
+        // Storage & Initialization
+        function loadInitialData() {
+            const savedState = localStorage.getItem('odaai_schedule_app_data');
+            if (savedState) {
+                try {
+                    const parsed = JSON.parse(savedState);
+                    state = {
+                        teachers: parsed.teachers || [],
+                        subjects: parsed.subjects || [...DEFAULT_SUBJECTS],
+                        classes: parsed.classes || DEFAULT_CLASSES.map((c, i) => ({ id: 'cls_' + (i + 1), name: c })),
+                        schedule: parsed.schedule || null,
+                        dailyPeriods: parsed.dailyPeriods || 6,
+                        googleSheetsUrl: parsed.googleSheetsUrl || 'https://script.google.com/macros/s/AKfycbx_Xa6-m0wJS2CzENawPG9sRkxNZGnsfqe7QF62oSoLgkxCyyW5AgIh_PDFRQ2Eb0uo/exec'
+                    };
+                } catch(e) {
+                    console.error("Error loading state", e);
+                    loadDefaults();
+                }
+            } else {
+                loadDefaults();
+            }
+
+            // Set radio button UI according to restored dailyPeriods
+            const periodRadios = document.getElementsByName('daily-periods');
+            for (const r of periodRadios) {
+                if (parseInt(r.value) === state.dailyPeriods) {
+                    r.checked = true;
+                }
+            }
+
+            if (state.googleSheetsUrl) {
+                document.getElementById('google-sheets-url').value = state.googleSheetsUrl;
+                updateGoogleSheetsBadge(true);
+                // Auto sync from cloud on initial open if URL exists
+                syncFromGoogleSheets(true);
+            }
+
+            renderAll();
+            updateSaveStatusIndicator();
+        }
+
+        function loadDefaults() {
+            state.subjects = [...DEFAULT_SUBJECTS];
+            state.classes = DEFAULT_CLASSES.map((c, i) => ({ id: 'cls_' + (i + 1), name: c }));
+            state.teachers = [];
+            state.schedule = null;
+            state.dailyPeriods = 6;
+            state.googleSheetsUrl = 'https://script.google.com/macros/s/AKfycbx_Xa6-m0wJS2CzENawPG9sRkxNZGnsfqe7QF62oSoLgkxCyyW5AgIh_PDFRQ2Eb0uo/exec';
+            saveState();
+        }
+
+        function saveState() {
+            try {
+                localStorage.setItem('odaai_schedule_app_data', JSON.stringify(state));
+                updateSaveStatusIndicator();
+
+                // Trigger background sync to Google Sheets if URL configured
+                if (state.googleSheetsUrl) {
+                    syncToGoogleSheets(true);
+                }
+            } catch(e) {
+                console.error("Failed to save to LocalStorage", e);
+                showToast('حدث خطأ أثناء التخزين المحلي للبيانات', 'error');
+            }
+        }
+
+        function updateSaveStatusIndicator() {
+            const badge = document.getElementById('save-status-badge');
+            if (badge) {
+                badge.innerHTML = `<i data-lucide="check-circle-2" class="w-3 h-3"></i><span>محفوظ تلقائياً</span>`;
+                lucide.createIcons();
+            }
+        }
+
+        function updateGoogleSheetsBadge(active) {
+            const badge = document.getElementById('gsheet-status-badge');
+            if (badge) {
+                if (active) badge.classList.remove('hidden');
+                else badge.classList.add('hidden');
+            }
+        }
+
+        function saveGoogleSheetsUrl() {
+            const url = document.getElementById('google-sheets-url').value.trim();
+            state.googleSheetsUrl = url;
+            saveState();
+            updateGoogleSheetsBadge(!!url);
+            if (url) {
+                showToast('تم حفظ رابط Google Sheets وتفعيل الربط الفوري بنجاح');
+                syncToGoogleSheets();
+            } else {
+                showToast('تم إلغاء الربط مع Google Sheets', 'info');
+            }
+        }
+
+        function copyAppsScriptCode() {
+            const copyText = document.getElementById('apps-script-code');
+            copyText.select();
+            document.execCommand('copy');
+            showToast('تم نسخ كود Apps Script إلى الحافظة');
+        }
+
+        // GOOGLE SHEETS LIVE SYNC
+        async function syncToGoogleSheets(silent = false) {
+            if (!state.googleSheetsUrl) {
+                if (!silent) showToast('يرجى إدخال رابط Google Sheets وتفعيله أولاً', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(state.googleSheetsUrl, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(state)
+                });
+                if (!silent) showToast('تم حفظ البيانات ومزامنتها في Google Sheets بنجاح');
+            } catch (err) {
+                console.error("Google Sheets Sync Error", err);
+                if (!silent) showToast('حدث خطأ في الاتصال بـ Google Sheets', 'error');
+            }
+        }
+
+        async function syncFromGoogleSheets(silent = false) {
+            if (!state.googleSheetsUrl) {
+                if (!silent) showToast('يرجى إضافة رابط Google Sheets أولاً', 'error');
+                return;
+            }
+
+            try {
+                const res = await fetch(state.googleSheetsUrl);
+                const cloudData = await res.json();
+                if (cloudData && typeof cloudData === 'object' && cloudData.teachers) {
+                    state = {
+                        teachers: cloudData.teachers || [],
+                        subjects: cloudData.subjects || [...DEFAULT_SUBJECTS],
+                        classes: cloudData.classes || [],
+                        schedule: cloudData.schedule || null,
+                        dailyPeriods: cloudData.dailyPeriods || 6,
+                        googleSheetsUrl: state.googleSheetsUrl
+                    };
+                    localStorage.setItem('odaai_schedule_app_data', JSON.stringify(state));
+                    renderAll();
+                    if (!silent) showToast('تم استرجاع ومزامنة كامل البيانات من Google Sheets بنجاح');
+                }
+            } catch (err) {
+                console.error("Error fetching from Google Sheets", err);
+                if (!silent) showToast('لم نتمكن من جلب البيانات من Google Sheets', 'error');
+            }
+        }
+
+        function updateDailyPeriods(val) {
+            state.dailyPeriods = parseInt(val);
+            saveState();
+        }
+
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            const bgClass = type === 'success' ? 'bg-emerald-600' : (type === 'error' ? 'bg-rose-600' : 'bg-slate-800');
+            
+            toast.className = `${bgClass} text-white text-xs font-bold px-4 py-3 rounded-xl shadow-lg transition-all duration-300 flex items-center gap-2 pointer-events-auto transform translate-y-2 opacity-0`;
+            toast.innerHTML = `<i data-lucide="${type === 'success' ? 'check-circle' : 'alert-circle'}" class="w-4 h-4"></i><span>${message}</span>`;
+            
+            container.appendChild(toast);
+            lucide.createIcons();
+
+            setTimeout(() => {
+                toast.classList.remove('translate-y-2', 'opacity-0');
+            }, 10);
+
+            setTimeout(() => {
+                toast.classList.add('opacity-0');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // Navigation Tabs UI
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.tab-btn').forEach(el => {
+                el.classList.remove('active', 'bg-brand-600', 'text-white', 'shadow');
+                el.classList.add('text-slate-300', 'hover:text-white', 'hover:bg-brand-800');
+            });
+
+            document.getElementById(`tab-${tabName}`).classList.remove('hidden');
+            const activeBtn = document.getElementById(`tab-btn-${tabName}`);
+            activeBtn.classList.add('active', 'bg-brand-600', 'text-white', 'shadow');
+            activeBtn.classList.remove('text-slate-300', 'hover:text-white', 'hover:bg-brand-800');
+
+            if (tabName === 'generator') updateGeneratorStats();
+            if (tabName === 'master-schedule') renderMasterSchedule();
+            if (tabName === 'teacher-schedule') populateTeacherDropdown();
+        }
+
+        // --- TEACHERS MANAGEMENT ---
+        function renderTeachers() {
+            const tbody = document.getElementById('teachers-table-body');
+            tbody.innerHTML = '';
+
+            if (state.teachers.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-slate-400">لا يوجد معلمون مضافون حالياً. اضغط على "إضافة معلم جديد" للبدء.</td></tr>`;
+                return;
+            }
+
+            state.teachers.forEach(t => {
+                const offDaysText = t.offDays && t.offDays.length > 0 
+                    ? t.offDays.map(d => DAYS.find(x => x.id === d)?.name).join(', ')
+                    : 'لا يوجد';
+
+                const assignmentsText = t.assignments && t.assignments.length > 0
+                    ? t.assignments.map(a => `<span class="inline-block bg-brand-50 text-brand-700 text-xs px-2 py-0.5 rounded border border-brand-200 m-0.5"><b>${a.subject}</b> (${a.className}): ${a.weeklyPeriods} حصص</span>`).join(' ')
+                    : '<span class="text-slate-400">غير مسند</span>';
+
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-50 transition';
+                tr.innerHTML = `
+                    <td class="p-4"><input type="checkbox" value="${t.id}" class="teacher-select-cb rounded border-slate-300 text-brand-600"></td>
+                    <td class="p-4 font-bold text-slate-800">${t.name}</td>
+                    <td class="p-4"><span class="bg-amber-100 text-amber-800 text-xs px-2 py-1 rounded-full font-bold">${t.quota || 15} حصة</span></td>
+                    <td class="p-4">${assignmentsText}</td>
+                    <td class="p-4 text-xs text-rose-600 font-medium">${offDaysText}</td>
+                    <td class="p-4 text-center">
+                        <div class="flex justify-center gap-2">
+                            <button onclick="editTeacher('${t.id}')" class="p-1.5 text-slate-500 hover:text-brand-600 hover:bg-slate-100 rounded-lg"><i data-lucide="edit-3" class="w-4 h-4"></i></button>
+                            <button onclick="deleteTeacher('${t.id}')" class="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-slate-100 rounded-lg"><i data-lucide="trash" class="w-4 h-4"></i></button>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+            lucide.createIcons();
+        }
+
+        function openTeacherModal(teacher = null) {
+            document.getElementById('form-teacher').reset();
+            document.getElementById('assignments-container').innerHTML = '';
+            document.getElementById('modal-teacher-title').innerText = teacher ? 'تعديل بيانات المعلم' : 'إضافة معلم جديد';
+            
+            if (teacher) {
+                document.getElementById('teacher-id').value = teacher.id;
+                document.getElementById('teacher-name').value = teacher.name;
+                document.getElementById('teacher-quota').value = teacher.quota || 15;
+                
+                // Set Off Days
+                document.querySelectorAll('input[name="off-days"]').forEach(cb => {
+                    cb.checked = teacher.offDays ? teacher.offDays.includes(cb.value) : false;
+                });
+
+                // Set Assignments
+                if (teacher.assignments && teacher.assignments.length > 0) {
+                    teacher.assignments.forEach(a => addAssignmentRow(a.subject, a.className, a.weeklyPeriods));
+                } else {
+                    addAssignmentRow();
+                }
+            } else {
+                document.getElementById('teacher-id').value = '';
+                addAssignmentRow();
+            }
+
+            document.getElementById('modal-teacher').classList.remove('hidden');
+        }
+
+        function closeTeacherModal() {
+            document.getElementById('modal-teacher').classList.add('hidden');
+        }
+
+        function addAssignmentRow(subject = '', className = '', periods = 2) {
+            const container = document.getElementById('assignments-container');
+            const row = document.createElement('div');
+            row.className = 'flex items-center gap-2 assignment-row';
+
+            const subOptions = state.subjects.map(s => `<option value="${s}" ${s === subject ? 'selected' : ''}>${s}</option>`).join('');
+            const classOptions = state.classes.map(c => `<option value="${c.name}" ${c.name === className ? 'selected' : ''}>${c.name}</option>`).join('');
+
+            row.innerHTML = `
+                <select class="assignment-subject border border-slate-300 rounded-xl p-2 text-xs flex-1">${subOptions}</select>
+                <select class="assignment-class border border-slate-300 rounded-xl p-2 text-xs flex-1">${classOptions}</select>
+                <input type="number" class="assignment-periods border border-slate-300 rounded-xl p-2 text-xs w-20 text-center" value="${periods}" min="1" max="10" placeholder="الحصص">
+                <button type="button" onclick="this.parentElement.remove()" class="p-2 text-rose-500 hover:bg-rose-50 rounded-lg"><i data-lucide="minus-circle" class="w-4 h-4"></i></button>
+            `;
+            container.appendChild(row);
+            lucide.createIcons();
+        }
+
+        function saveTeacher(e) {
+            e.preventDefault();
+            const id = document.getElementById('teacher-id').value || 't_' + Date.now();
+            const name = document.getElementById('teacher-name').value.trim();
+            const quota = parseInt(document.getElementById('teacher-quota').value) || 15;
+
+            const offDays = Array.from(document.querySelectorAll('input[name="off-days"]:checked')).map(cb => cb.value);
+
+            const assignments = [];
+            document.querySelectorAll('.assignment-row').forEach(row => {
+                const subject = row.querySelector('.assignment-subject').value;
+                const className = row.querySelector('.assignment-class').value;
+                const weeklyPeriods = parseInt(row.querySelector('.assignment-periods').value) || 1;
+                if (subject && className) {
+                    assignments.push({ subject, className, weeklyPeriods });
+                }
+            });
+
+            const teacherData = { id, name, quota, offDays, assignments };
+
+            const existingIdx = state.teachers.findIndex(t => t.id === id);
+            if (existingIdx >= 0) {
+                state.teachers[existingIdx] = teacherData;
+            } else {
+                state.teachers.push(teacherData);
+            }
+
+            saveState();
+            renderTeachers();
+            closeTeacherModal();
+            showToast('تم حفظ بيانات المعلم بنجاح');
+        }
+
+        function editTeacher(id) {
+            const t = state.teachers.find(x => x.id === id);
+            if (t) openTeacherModal(t);
+        }
+
+        function deleteTeacher(id) {
+            state.teachers = state.teachers.filter(t => t.id !== id);
+            saveState();
+            renderTeachers();
+            showToast('تم حذف المعلم', 'info');
+        }
+
+        function toggleSelectAllTeachers(master) {
+            document.querySelectorAll('.teacher-select-cb').forEach(cb => cb.checked = master.checked);
+        }
+
+        function deleteSelectedTeachers() {
+            const selectedIds = Array.from(document.querySelectorAll('.teacher-select-cb:checked')).map(cb => cb.value);
+            if (selectedIds.length === 0) {
+                showToast('الرجاء تحديد المعلمين المراد حذفهم', 'error');
+                return;
+            }
+            state.teachers = state.teachers.filter(t => !selectedIds.includes(t.id));
+            saveState();
+            renderTeachers();
+            showToast('تم حذف المعلمين المحددين', 'info');
+        }
+
+        function deleteAllTeachers() {
+            if (confirm('هل أنت تأكد من حذف جميع المعلمين؟')) {
+                state.teachers = [];
+                saveState();
+                renderTeachers();
+                showToast('تم حذف كافة المعلمين', 'info');
+            }
+        }
+
+        // --- SUBJECTS MANAGEMENT ---
+        function renderSubjects() {
+            const grid = document.getElementById('subjects-grid');
+            grid.innerHTML = '';
+
+            state.subjects.forEach(s => {
+                const card = document.createElement('div');
+                card.className = 'bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm flex items-center justify-between';
+                card.innerHTML = `
+                    <span class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                        <i data-lucide="book" class="w-4 h-4 text-brand-500"></i> ${s}
+                    </span>
+                    <button onclick="deleteSubject('${s}')" class="text-slate-400 hover:text-rose-600 p-1"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                `;
+                grid.appendChild(card);
+            });
+            lucide.createIcons();
+        }
+
+        function openSubjectModal() {
+            document.getElementById('form-subject').reset();
+            document.getElementById('modal-subject').classList.remove('hidden');
+        }
+
+        function closeSubjectModal() {
+            document.getElementById('modal-subject').classList.add('hidden');
+        }
+
+        function saveSubject(e) {
+            e.preventDefault();
+            const name = document.getElementById('subject-name').value.trim();
+            if (name && !state.subjects.includes(name)) {
+                state.subjects.push(name);
+                saveState();
+                renderSubjects();
+                closeSubjectModal();
+                showToast('تمت إضافة المادة بنجاح');
+            }
+        }
+
+        function deleteSubject(name) {
+            state.subjects = state.subjects.filter(s => s !== name);
+            saveState();
+            renderSubjects();
+            showToast('تم حذف المادة', 'info');
+        }
+
+        function deleteAllSubjects() {
+            if (confirm('هل ترغب بحذف كافة المواد؟')) {
+                state.subjects = [];
+                saveState();
+                renderSubjects();
+                showToast('تم مسح المواد', 'info');
+            }
+        }
+
+        // --- CLASSES MANAGEMENT ---
+        function renderClasses() {
+            const grid = document.getElementById('classes-grid');
+            grid.innerHTML = '';
+
+            state.classes.forEach(c => {
+                const card = document.createElement('div');
+                card.className = 'bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm flex items-center justify-between';
+                card.innerHTML = `
+                    <span class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                        <i data-lucide="door-closed" class="w-4 h-4 text-amber-500"></i> ${c.name}
+                    </span>
+                    <div class="flex items-center gap-1">
+                        <button onclick="editClass('${c.id}')" class="text-slate-400 hover:text-brand-600 p-1"><i data-lucide="edit-2" class="w-4 h-4"></i></button>
+                        <button onclick="deleteClass('${c.id}')" class="text-slate-400 hover:text-rose-600 p-1"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+            lucide.createIcons();
+        }
+
+        function openClassModal(cls = null) {
+            document.getElementById('form-class').reset();
+            document.getElementById('modal-class-title').innerText = cls ? 'تعديل اسم الشعبة' : 'إضافة شعبة جديدة';
+            if (cls) {
+                document.getElementById('class-id').value = cls.id;
+                document.getElementById('class-name').value = cls.name;
+            } else {
+                document.getElementById('class-id').value = '';
+            }
+            document.getElementById('modal-class').classList.remove('hidden');
+        }
+
+        function closeClassModal() {
+            document.getElementById('modal-class').classList.add('hidden');
+        }
+
+        function saveClass(e) {
+            e.preventDefault();
+            const id = document.getElementById('class-id').value || 'cls_' + Date.now();
+            const name = document.getElementById('class-name').value.trim();
+
+            const idx = state.classes.findIndex(c => c.id === id);
+            if (idx >= 0) {
+                state.classes[idx].name = name;
+            } else {
+                state.classes.push({ id, name });
+            }
+
+            saveState();
+            renderClasses();
+            closeClassModal();
+            showToast('تم حفظ بيانات الشعبة');
+        }
+
+        function editClass(id) {
+            const cls = state.classes.find(c => c.id === id);
+            if (cls) openClassModal(cls);
+        }
+
+        function deleteClass(id) {
+            state.classes = state.classes.filter(c => c.id !== id);
+            saveState();
+            renderClasses();
+            showToast('تم حذف الشعبة', 'info');
+        }
+
+        function resetDefaultClasses() {
+            state.classes = DEFAULT_CLASSES.map((c, i) => ({ id: 'cls_' + (i + 1), name: c }));
+            saveState();
+            renderClasses();
+            showToast('تمت استعادة الشعب الافتراضية 11 شعبة بنجاح');
+        }
+
+        // --- SCHEDULING ALGORITHM ---
+        function updateGeneratorStats() {
+            document.getElementById('stat-teachers-count').innerText = state.teachers.length;
+            document.getElementById('stat-classes-count').innerText = state.classes.length;
+
+            let totalPeriods = 0;
+            state.teachers.forEach(t => {
+                if (t.assignments) {
+                    t.assignments.forEach(a => totalPeriods += (a.weeklyPeriods || 0));
+                }
+            });
+            document.getElementById('stat-periods-count').innerText = totalPeriods;
+        }
+
+        function generateScheduleAlgorithm() {
+            const periodRadios = document.getElementsByName('daily-periods');
+            let dailyPeriods = state.dailyPeriods || 6;
+            for (const r of periodRadios) {
+                if (r.checked) dailyPeriods = parseInt(r.value);
+            }
+            state.dailyPeriods = dailyPeriods;
+
+            if (state.teachers.length === 0 || state.classes.length === 0) {
+                showToast('يرجى إدخال المعلمين والشعب أولاً قبل التوليد', 'error');
+                return;
+            }
+
+            // Build Tasks list (All periods that need to be scheduled)
+            let tasks = [];
+            state.teachers.forEach(teacher => {
+                if (teacher.assignments) {
+                    teacher.assignments.forEach(assign => {
+                        for (let p = 0; p < assign.weeklyPeriods; p++) {
+                            tasks.push({
+                                teacherId: teacher.id,
+                                teacherName: teacher.name,
+                                subject: assign.subject,
+                                className: assign.className,
+                                offDays: teacher.offDays || []
+                            });
+                        }
+                    });
+                }
+            });
+
+            // Shuffle tasks for stochastic fairness
+            tasks.sort(() => Math.random() - 0.5);
+
+            // Data structure for master schedule: matrix[day][period][className] = { teacherName, subject }
+            // Data structure to track teacher availability: teacherOccupied[day][period][teacherId] = true
+            let grid = {};
+            let teacherOccupied = {};
+
+            DAYS.forEach(d => {
+                grid[d.id] = {};
+                teacherOccupied[d.id] = {};
+                for (let p = 1; p <= dailyPeriods; p++) {
+                    grid[d.id][p] = {};
+                    teacherOccupied[d.id][p] = {};
+                }
+            });
+
+            // Backtracking Solver
+            let unassignedCount = 0;
+
+            tasks.forEach(task => {
+                let placed = false;
+
+                // Try days
+                let availableDays = DAYS.filter(d => !task.offDays.includes(d.id));
+                availableDays.sort(() => Math.random() - 0.5); // Randomize day selection for balance
+
+                for (let dayObj of availableDays) {
+                    let dId = dayObj.id;
+
+                    // Try periods
+                    for (let p = 1; p <= dailyPeriods; p++) {
+                        // Check if class is free AND teacher is free
+                        if (!grid[dId][p][task.className] && !teacherOccupied[dId][p][task.teacherId]) {
+                            // Assign
+                            grid[dId][p][task.className] = {
+                                teacherName: task.teacherName,
+                                subject: task.subject
+                            };
+                            teacherOccupied[dId][p][task.teacherId] = true;
+                            placed = true;
+                            break;
+                        }
+                    }
+                    if (placed) break;
+                }
+
+                if (!placed) unassignedCount++;
+            });
+
+            state.schedule = grid;
+            saveState();
+
+            if (unassignedCount > 0) {
+                showToast(`تم توليد الجدول بنجاح مع تعذر إسناد ${unassignedCount} حصة بسبب القيود المفروضة`, 'error');
+            } else {
+                showToast('تم توليد الجدول المدرسي الذكي بنجاح وحفظه تلقائياً');
+            }
+
+            switchTab('master-schedule');
+        }
+
+        // --- MASTER SCHEDULE DISPLAY ---
+        function renderMasterSchedule() {
+            const container = document.getElementById('master-schedule-container');
+            container.innerHTML = '';
+
+            if (!state.schedule) {
+                container.innerHTML = `<div class="p-12 text-center text-slate-400 bg-white rounded-2xl border">لم يتم توليد أي جدول بعد. يرجى التوجه إلى تبويب "توليد الجدول الذكي".</div>`;
+                return;
+            }
+
+            DAYS.forEach(day => {
+                const dayCard = document.createElement('div');
+                dayCard.className = 'bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden';
+                
+                let tableHeaderHtml = `<th class="p-3 border-b bg-slate-100 text-slate-700 w-32">الشعبة / الصف</th>`;
+                for (let p = 1; p <= state.dailyPeriods; p++) {
+                    tableHeaderHtml += `<th class="p-3 border-b bg-slate-100 text-slate-700 text-center">الحصة ${p}</th>`;
+                }
+
+                let tableRowsHtml = '';
+                state.classes.forEach(cls => {
+                    tableRowsHtml += `<tr><td class="p-3 font-bold bg-slate-50 border-b border-l text-slate-800">${cls.name}</td>`;
+                    for (let p = 1; p <= state.dailyPeriods; p++) {
+                        const cell = state.schedule[day.id]?.[p]?.[cls.name];
+                        if (cell) {
+                            tableRowsHtml += `
+                                <td class="p-2 border-b border-l text-center bg-brand-50/40">
+                                    <div class="font-bold text-xs text-brand-900">${cell.subject}</div>
+                                    <div class="text-[10px] text-slate-500">${cell.teacherName}</div>
+                                </td>`;
+                        } else {
+                            tableRowsHtml += `<td class="p-2 border-b border-l text-center text-slate-300 text-xs">-</td>`;
+                        }
+                    }
+                    tableRowsHtml += `</tr>`;
+                });
+
+                dayCard.innerHTML = `
+                    <div class="bg-brand-900 text-white font-extrabold px-5 py-3 text-sm flex justify-between items-center">
+                        <span>يوم ${day.name}</span>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-right text-xs border-collapse">
+                            <thead><tr>${tableHeaderHtml}</tr></thead>
+                            <tbody>${tableRowsHtml}</tbody>
+                        </table>
+                    </div>
+                `;
+                container.appendChild(dayCard);
+            });
+        }
+
+        // --- TEACHER SCHEDULE DISPLAY ---
+        function populateTeacherDropdown() {
+            const dropdown = document.getElementById('teacher-select-dropdown');
+            dropdown.innerHTML = '';
+
+            if (state.teachers.length === 0) {
+                dropdown.innerHTML = '<option>لا يوجد معلمون</option>';
+                return;
+            }
+
+            state.teachers.forEach(t => {
+                const opt = document.createElement('option');
+                opt.value = t.id;
+                opt.innerText = t.name;
+                dropdown.appendChild(opt);
+            });
+
+            renderTeacherIndividualSchedule();
+        }
+
+        function renderTeacherIndividualSchedule() {
+            const dropdown = document.getElementById('teacher-select-dropdown');
+            const teacherId = dropdown.value;
+            const teacher = state.teachers.find(t => t.id === teacherId);
+
+            if (!teacher) return;
+
+            document.getElementById('teacher-schedule-title').innerText = `جدول المعلم: ${teacher.name}`;
+            document.getElementById('teacher-schedule-quota').innerText = teacher.quota || 15;
+
+            const table = document.getElementById('teacher-schedule-table');
+            
+            // Header
+            let theadHtml = `<tr class="bg-brand-900 text-white font-bold text-xs"><th class="p-3 border border-brand-800">اليوم / الحصة</th>`;
+            for (let p = 1; p <= state.dailyPeriods; p++) {
+                theadHtml += `<th class="p-3 border border-brand-800">الحصة ${p}</th>`;
+            }
+            theadHtml += `</tr>`;
+            table.querySelector('thead').innerHTML = theadHtml;
+
+            // Body
+            let tbodyHtml = '';
+            DAYS.forEach(day => {
+                const isOff = teacher.offDays && teacher.offDays.includes(day.id);
+                tbodyHtml += `<tr><td class="p-3 border font-bold bg-slate-100 text-slate-800 text-xs">${day.name}</td>`;
+
+                if (isOff) {
+                    tbodyHtml += `<td colspan="${state.dailyPeriods}" class="p-3 border text-center font-bold text-rose-600 bg-rose-50 text-xs">يوم غياب محظور / يمنع الإسناد</td>`;
+                } else {
+                    for (let p = 1; p <= state.dailyPeriods; p++) {
+                        let matchedCell = null;
+                        if (state.schedule && state.schedule[day.id]?.[p]) {
+                            const classesAtP = state.schedule[day.id][p];
+                            for (let cName in classesAtP) {
+                                if (classesAtP[cName].teacherName === teacher.name) {
+                                    matchedCell = { className: cName, subject: classesAtP[cName].subject };
+                                    break;
+                                }
+                            }
+                        }
+
+                        if (matchedCell) {
+                            tbodyHtml += `
+                                <td class="p-2 border text-center bg-amber-50">
+                                    <div class="font-extrabold text-xs text-brand-900">${matchedCell.subject}</div>
+                                    <div class="text-[11px] text-amber-800 font-medium">${matchedCell.className}</div>
+                                </td>`;
+                        } else {
+                            tbodyHtml += `<td class="p-2 border text-center text-slate-300 text-xs">-</td>`;
+                        }
+                    }
+                }
+                tbodyHtml += `</tr>`;
+            });
+
+            table.querySelector('tbody').innerHTML = tbodyHtml;
+        }
+
+        // --- RENDER ALL SECTIONS ---
+        function renderAll() {
+            renderTeachers();
+            renderSubjects();
+            renderClasses();
+        }
+
+        // --- IMPORT & EXPORT EXCEL DATA ---
+        function exportScheduleToExcel() {
+            if (!state.schedule) {
+                showToast('لا يوجد جدول لتصديره', 'error');
+                return;
+            }
+
+            const wb = XLSX.utils.book_new();
+
+            DAYS.forEach(day => {
+                const sheetData = [];
+                // Headers
+                const headers = ['الشعبة / الصف'];
+                for (let p = 1; p <= state.dailyPeriods; p++) headers.push(`الحصة ${p}`);
+                sheetData.push(headers);
+
+                // Rows
+                state.classes.forEach(cls => {
+                    const row = [cls.name];
+                    for (let p = 1; p <= state.dailyPeriods; p++) {
+                        const cell = state.schedule[day.id]?.[p]?.[cls.name];
+                        row.push(cell ? `${cell.subject} (${cell.teacherName})` : '-');
+                    }
+                    sheetData.push(row);
+                });
+
+                const ws = XLSX.utils.aoa_to_sheet(sheetData);
+                XLSX.utils.book_append_sheet(wb, ws, day.name);
+            });
+
+            XLSX.writeFile(wb, `جدول_الأستاذ_عدي_عصفور_${new Date().toISOString().slice(0,10)}.xlsx`);
+            showToast('تم تصدير الجدول إلى ملف Excel بنجاح');
+        }
+
+        function exportFullBackup() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", `نسخة_احتياطية_برنامج_عدي_عصفور.json`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+            showToast('تم تحميل نسخة النسخ الاحتياطي الشاملة');
+        }
+
+        function importDataFromExcel(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+                    const json = XLSX.utils.sheet_to_json(worksheet);
+
+                    if (json && json.length > 0) {
+                        // Import Logic (Assuming columns: TeacherName, Quota, Subjects)
+                        json.forEach(row => {
+                            const name = row['اسم المعلم'] || row['Name'] || row['المعلم'];
+                            if (name) {
+                                const teacherData = {
+                                    id: 't_' + Date.now() + Math.random().toString(36).substr(2, 4),
+                                    name: name,
+                                    quota: row['النصاب'] || 15,
+                                    offDays: [],
+                                    assignments: []
+                                };
+                                state.teachers.push(teacherData);
+                            }
+                        });
+                        saveState();
+                        renderTeachers();
+                        showToast('تمت قراءة البيانات واستيراد المعلمين بنجاح');
+                    }
+                } catch(err) {
+                    console.error(err);
+                    showToast('حدث خطأ أثناء لقراءة الملف المرفق', 'error');
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function confirmResetData() {
+            if (confirm('هل أنت متأكد من مسح كافة البيانات وإعادة التطبيق إلى حالته الافتراضية الأولية؟')) {
+                localStorage.removeItem('odaai_schedule_app_data');
+                loadDefaults();
+                renderAll();
+                showToast('تمت إعادة ضبط البيانات بنجاح', 'info');
+            }
+        }
+    </script>
+</body>
+</html>

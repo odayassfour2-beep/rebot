@@ -1,0 +1,29 @@
+{
+  "name": "adi-schedule",
+  "version": "1.0.0",
+  "description": "برنامج الأستاذ عدي عصفور - الجدول المدرسي الذكي",
+  "author": "Adi Asfour",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.0.0"
+  },
+  "build": {
+    "appId": "com.adi.schedule",
+    "productName": "Adi Schedule",
+    "files": ["index.html", "main.js", "package.json"],
+    "win": {
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
+  }
+}
